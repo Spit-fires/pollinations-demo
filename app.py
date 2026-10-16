@@ -5,7 +5,8 @@ approves a short code and the browser keeps the returned key in sessionStorage;
 the server never stores it.
 
 No local model: every generation call goes to gen.pollinations.ai with the
-visitor's key, so a CPU Basic duplicate is enough.
+visitor's key, so a CPU Basic duplicate is enough. A one-second @spaces.GPU
+probe exists only to satisfy ZeroGPU's startup check.
 """
 
 from __future__ import annotations
@@ -21,28 +22,22 @@ from urllib.parse import quote
 
 import gradio as gr
 import requests
-
-# ---------------------------------------------------------------------------
-# Optional ZeroGPU support: use the real decorator when it is installed,
-# otherwise a passthrough, so the same code runs on CPU Basic and on a
-# ZeroGPU duplicate. Keep suggested_hardware: cpu-basic.
-# ---------------------------------------------------------------------------
-try:
-    import spaces  # type: ignore
-
-    GPU = spaces.GPU
-except Exception:  # not a ZeroGPU Space; fall through to the passthrough
-
-    def GPU(*d, **k):
-        def wrap(fn):
-            return fn
-
-        if len(d) == 1 and callable(d[0]) and not k:
-            return d[0]
-        return wrap
+import spaces
 
 
 log = logging.getLogger("postcard")
+
+# ---------------------------------------------------------------------------
+# ZeroGPU compatibility. The app never uses a GPU, but ZeroGPU hardware
+# refuses to start a Space without a registered @spaces.GPU function, so this
+# one-second probe covers that check. It is bound to a button that nobody has
+# to press: off ZeroGPU the decorator is a passthrough, and on ZeroGPU it only
+# allocates when clicked. Keep suggested_hardware: cpu-basic.
+# ---------------------------------------------------------------------------
+@spaces.GPU(duration=1)
+def gpu_runtime_check() -> str:
+    """Report the GPU runtime. Only used by the Runtime check button."""
+    return "ZeroGPU runtime active." if os.getenv("SPACES_ZERO_GPU") == "1" else "Passthrough, no GPU in use."
 logging.basicConfig(level=logging.INFO)
 
 GEN_BASE = os.getenv("GEN_BASE", "https://gen.pollinations.ai").rstrip("/")
@@ -257,7 +252,6 @@ def make_audio(caption: str, api_key: str, voice: str) -> str:
 # ---------------------------------------------------------------------------
 # MCP tool. Typed args plus an Args docstring keep the schema clean.
 # ---------------------------------------------------------------------------
-@GPU(duration=90)
 def make_postcard(
     prompt: str,
     api_key: str,
@@ -716,6 +710,12 @@ def build_demo() -> gr.Blocks:
                 text_model = gr.Dropdown(models["text"], value=models["text"][0], label="Text model")
                 voice = gr.Dropdown(FALLBACK_VOICES, value="nova", label="Narration voice")
 
+        with gr.Accordion("Runtime check", open=False):
+            with gr.Row():
+                gpu_check_btn = gr.Button("Check GPU runtime", variant="secondary", scale=0, min_width=180)
+                gpu_check_out = gr.Textbox(label="Runtime status", interactive=False, scale=1)
+            gpu_check_btn.click(gpu_runtime_check, outputs=gpu_check_out, api_visibility="private")
+
         with gr.Row():
             gen_btn = gr.Button("Generate postcard", variant="primary", scale=0, min_width=210)
             gr.HTML(
@@ -746,7 +746,7 @@ def build_demo() -> gr.Blocks:
         with gr.Accordion("Make it your own", open=False):
             gr.Markdown(
                 """
-1. **Duplicate this Space.** CPU Basic is enough; this app calls the Pollinations API and runs no model.
+1. **Duplicate this Space.** CPU Basic is enough; the app calls the Pollinations API and never uses a GPU. ZeroGPU duplicates also start, and the runtime probe only runs if you click it.
 2. **Optional App Key.** Create one at enter.pollinations.ai/keys and set it as Space Variable
    `POLLINATIONS_APP_KEY`. Variables carry over on Duplicate, Secrets do not. No Redirect URI is
    needed: sign-in uses the device flow, users approve a short code. Without a key, approval still

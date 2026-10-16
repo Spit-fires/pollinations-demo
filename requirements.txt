@@ -1,3 +1,4 @@
 gradio[mcp]==6.30.0
 requests>=2.31
 pillow>=10.0
+spaces

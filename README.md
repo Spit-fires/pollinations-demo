@@ -42,7 +42,8 @@ Schema: `/gradio_api/mcp/schema`. Add this Space from Hub MCP settings, no code 
 
 ## Make it your own
 
-1. Duplicate this Space. CPU Basic is enough, do not switch to ZeroGPU.
+1. Duplicate this Space. CPU Basic is enough: the app calls the Pollinations API and never
+   uses a GPU. ZeroGPU duplicates also start, and the runtime probe only runs if clicked.
 2. Optional: create an App Key at enter.pollinations.ai/keys and set it as Space Variable
    `POLLINATIONS_APP_KEY`. Variables carry over on Duplicate, Secrets do not. No Redirect URI
    is needed, sign-in uses the device flow, so every duplicate works without extra setup.
@@ -53,7 +54,11 @@ Schema: `/gradio_api/mcp/schema`. Add this Space from Hub MCP settings, no code 
 
 ## ZeroGPU note
 
-This Space runs on CPU and calls the Pollinations API, so it needs no GPU. The `spaces.GPU` decorator is guarded: effect free on CPU, harmless if a duplicate picks ZeroGPU. Keep `suggested_hardware: cpu-basic`.
+This Space calls the Pollinations API and never uses a GPU; CPU Basic is enough.
+ZeroGPU duplicates still start: ZeroGPU requires at least one `@spaces.GPU`
+function, so the one-second `gpu_runtime_check` probe exists to satisfy that
+check. It runs only if you click the Runtime check button, so duplicates consume
+no GPU quota by default. Keep `suggested_hardware: cpu-basic`.
 
 ## Config
 
