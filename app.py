@@ -582,6 +582,12 @@ input, textarea {{ background: {WHITE} !important; color: {INK} !important; bord
 }}
 #foot a, #foot code {{ color: {INK} !important; font-weight: 600; }}
 
+#builtwith {{
+  text-align: center; padding: 16px 0 6px; font-size: 13px !important;
+  color: {MUTED} !important; letter-spacing: .02em;
+}}
+#builtwith a {{ color: {INK} !important; font-weight: 600; }}
+
 .gradio-container details {{ background: {TAN} !important; border: 1px solid {BORDER} !important; border-radius: 12px !important; }}
 .gradio-container summary {{ color: {INK} !important; font-weight: 600 !important; }}
 
@@ -765,6 +771,11 @@ def build_demo() -> gr.Blocks:
             "<div class='footnote'>Sign-in uses the Pollinations device flow, so your App Key "
             "needs no Redirect URI.</div>"
             "</div>"
+        )
+
+        gr.HTML(
+            "<div id='builtwith'>Built with "
+            "<a href='https://pollinations.ai/?ref=badge' target='_blank' rel='noreferrer'>Pollinations</a></div>"
         )
 
         def _set_key(k):
