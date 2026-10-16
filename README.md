@@ -28,7 +28,7 @@ Built for [quest #17249](https://github.com/pollinations/pollinations/issues/172
 
 ## Use it
 
-1. Choose Sign in with Pollen. That is Bring Your Own Pollen, using the Pollinations device flow: a short code appears, you approve it at enter.pollinations.ai/device, and the page updates by itself. The key is held in `sessionStorage` for that tab only, never sent to this server for storage and never written to logs.
+1. Choose Sign in with Pollen. That is Bring Your Own Pollen, using the Pollinations device flow: a short code appears, you approve it at enter.pollinations.ai/device, and the page updates by itself. The key is held in `sessionStorage` for that tab and sent to this Space's server, which keeps it in session memory to call Pollinations. It is not written to disk or intentionally logged. Only connect to a Space whose owner you trust.
 2. Write a prompt, choose Generate postcard.
 3. Read the caption and play the narration. The caption is the audio transcript.
 
@@ -36,14 +36,18 @@ Signing out clears the key from the tab.
 
 ## MCP
 
-True MCP server via `demo.launch(mcp_server=True)`. One tool: `make_postcard(prompt, api_key, image_model, text_model, voice)`. Typed with an `Args:` docstring so the schema stays clean.
+MCP server via `demo.launch(mcp_server=True)`. One tool: `make_postcard(prompt, api_key, image_model, text_model, voice)`. It reuses the app's image and audio components so remote clients receive media and downloadable URLs rather than server-local filenames.
 
 Schema: `/gradio_api/mcp/schema`. Add this Space from Hub MCP settings, no code needed.
 
 ## Make it your own
 
-1. Duplicate this Space. CPU Basic is enough: the app calls the Pollinations API and never
-   uses a GPU. ZeroGPU duplicates also start, and the runtime probe only runs if clicked.
+1. Duplicate this Space. CPU Basic is enough for the code, but Hugging Face requires a
+   paid plan to create or duplicate ordinary Gradio Spaces. Eligible free personal
+   accounts can instead choose ZeroGPU, subject to Hugging Face's limits. Check the
+   [current hosting rules](https://huggingface.co/docs/hub/spaces-overview).
+   The app calls Pollinations rather than running a local model; its ZeroGPU runtime
+   probe only runs if clicked.
 2. Optional: create an App Key at enter.pollinations.ai/keys and set it as Space Variable
    `POLLINATIONS_APP_KEY`. Variables carry over on Duplicate, Secrets do not. No Redirect URI
    is needed, sign-in uses the device flow, so every duplicate works without extra setup.

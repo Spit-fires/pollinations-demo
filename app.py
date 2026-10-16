@@ -2,7 +2,7 @@
 
 Sign-in is Bring Your Own Pollen, via the Pollinations device flow. The visitor
 approves a short code and the browser keeps the returned key in sessionStorage;
-the server never stores it.
+the server uses it in session memory to call Pollinations, not in persistent storage.
 
 No local model: every generation call goes to gen.pollinations.ai with the
 visitor's key, so a CPU Basic duplicate is enough. A one-second @spaces.GPU
@@ -258,7 +258,7 @@ def make_postcard(
     image_model: str = "black-forest-labs/flux.1-schnell",
     text_model: str = "openai/gpt-6-luna",
     voice: str = "nova",
-) -> tuple[str, str, str]:
+) -> tuple[str, str | None, str | None]:
     """Make a living postcard from one prompt: image plus caption plus narration.
 
     Args:
@@ -284,7 +284,7 @@ def make_postcard(
     except Exception as e:
         log.warning("audio step failed: %s", e)
         audio_path = ""
-    return caption, image_path, audio_path
+    return caption, image_path or None, audio_path or None
 
 
 def ui_generate(prompt, api_key, image_model, text_model, voice):
@@ -436,15 +436,6 @@ window.polliStopSignin = function (msg) {
 };
 window.polliBoot = async function () {
   try {
-    /* Legacy fragment flow still works if a visitor arrives with #api_key= */
-    const frag = new URLSearchParams((location.hash || '').slice(1));
-    const fragKey = frag.get('api_key');
-    if (fragKey) {
-      sessionStorage.setItem('polli_key', fragKey);
-      window.polliFillRetry(fragKey, 30);
-      history.replaceState(null, '', location.pathname + location.search);
-      return;
-    }
     const saved = sessionStorage.getItem('polli_key');
     if (saved) window.polliFillRetry(saved, 30);
   } catch (e) { console.warn('polli boot', e); }
@@ -752,7 +743,7 @@ def build_demo() -> gr.Blocks:
         with gr.Accordion("Make it your own", open=False):
             gr.Markdown(
                 """
-1. **Duplicate this Space.** CPU Basic is enough; the app calls the Pollinations API and never uses a GPU. ZeroGPU duplicates also start, and the runtime probe only runs if you click it.
+1. **Duplicate this Space.** CPU Basic is enough for the code; Hugging Face requires a paid plan for ordinary Gradio duplication. Eligible free accounts can choose ZeroGPU within its limits. See the [hosting rules](https://huggingface.co/docs/hub/spaces-overview).
 2. **Optional App Key.** Create one at enter.pollinations.ai/keys and set it as Space Variable
    `POLLINATIONS_APP_KEY`. Variables carry over on Duplicate, Secrets do not. No Redirect URI is
    needed: sign-in uses the device flow, users approve a short code. Without a key, approval still
@@ -803,8 +794,14 @@ def build_demo() -> gr.Blocks:
         out_btn.click(sign_out, inputs=[key_state], outputs=[key_bridge, key_state, status],
                       js="() => { if (window.polliDisconnect) { window.polliDisconnect(); } }", api_visibility="private")
 
-        # Pure-logic MCP tool: one postcard endpoint for agents.
-        gr.api(make_postcard, api_name="make_postcard")
+        # Reuse the media components so MCP receives usable image/audio URLs.
+        # No UI triggers: this endpoint runs only when an API client calls it.
+        gr.on(
+            triggers=[], fn=make_postcard,
+            inputs=[prompt, key_bridge, image_model, text_model, voice],
+            outputs=[out_caption, out_image, out_audio],
+            api_name="make_postcard",
+        )
     return demo
 
 
